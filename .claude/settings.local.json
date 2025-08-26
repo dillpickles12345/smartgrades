@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(del smartgrades.db)",
+      "Bash(ren:*)",
+      "Bash(start \"C:\\final assignment\\app.html\")",
+      "Bash(start \"C:\\final assignment\\debug_test.html\")",
+      "Bash(del \"C:\\final assignment\\debug_test.html\")",
+      "Bash(start \"C:\\final assignment\\integration_test.html\")",
+      "Bash(start \"C:\\final assignment\\chart_test.html\")",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

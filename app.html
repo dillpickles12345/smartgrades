@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartGrades - Multi-Student Grade Predictor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Decorative Background Shapes -->
+    <div class="decorative-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+        <div class="shape shape-4"></div>
+        <!-- Floating Particles -->
+        <div class="particle particle-1"></div>
+        <div class="particle particle-2"></div>
+        <div class="particle particle-3"></div>
+        <div class="particle particle-4"></div>
+        <div class="particle particle-5"></div>
+    </div>
+    
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <h1>SmartGrades</h1>
+            <p>Multi-Student Grade Predictor with Class Management</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="teachers-tab">Teachers</button>
+            <button class="nav-tab" id="classes-tab">Classes</button>
+            <button class="nav-tab" id="students-tab">Students</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Teachers Tab -->
+            <div class="tab-pane active" id="teachers-pane">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="mb-0 section-title">Teacher Management</h3>
+                        <p class="mt-2 section-subtitle">Manage instructors and their classes</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button id="load-sample-data-btn" class="btn btn-success">
+                            <i class="fas fa-database"></i> Load Sample Data
+                        </button>
+                        <button id="add-teacher-btn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Teacher
+                        </button>
+                    </div>
+                </div>
+                <div id="teachers-list" class="card">
+                    <div class="card-body">
+                        <div id="teachers-table"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classes Tab -->
+            <div class="tab-pane" id="classes-pane">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="mb-0 section-title">Class Management</h3>
+                        <p class="mt-2 section-subtitle">Create and organize academic classes</p>
+                    </div>
+                    <button id="add-class-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Class
+                    </button>
+                </div>
+                <div id="classes-list" class="card">
+                    <div class="card-body">
+                        <div id="classes-table"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Tab -->
+            <div class="tab-pane" id="students-pane">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="mb-0 section-title">Student Dashboard</h3>
+                        <p class="mt-2 section-subtitle">Track progress and predict grades</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <select id="class-selector" class="form-control auto-width">
+                            <option value="">Select a class...</option>
+                        </select>
+                        <button id="import-students-btn" class="btn btn-secondary">
+                            <i class="fas fa-upload"></i> Import CSV
+                        </button>
+                        <button id="add-student-btn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Student
+                        </button>
+                    </div>
+                </div>
+
+                <div id="students-list" class="card">
+                    <div class="card-body">
+                        <!-- Search and Filter Controls -->
+                        <div class="form-row mb-3">
+                            <div class="form-group">
+                                <input type="text" id="search-input" class="form-control" placeholder="Search students...">
+                            </div>
+                            <div class="form-group">
+                                <select id="sort-select" class="form-control">
+                                    <option value="name">Sort by Name</option>
+                                    <option value="predicted">Sort by Predicted %</option>
+                                    <option value="grade">Sort by Letter Grade</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <select id="grade-filter" class="form-control">
+                                    <option value="">All Grades</option>
+                                    <option value="A">Grade A</option>
+                                    <option value="B">Grade B</option>
+                                    <option value="C">Grade C</option>
+                                    <option value="D">Grade D</option>
+                                    <option value="E">Grade E</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <select id="grading-system" class="form-control">
+                                    <option value="absolute">Absolute Grading (90%=A, 80%=B, 70%=C, 60%=D)</option>
+                                    <option value="relative">Relative Grading (Bell Curve: z≥+1→A, +0.3→B, -0.3→C, -1→D)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Students Table -->
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Total Weighted Score</th>
+                                        <th>Predicted %</th>
+                                        <th>Letter Grade</th>
+                                        <th>Z-Score</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="students-table-body">
+                                    <!-- Students will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Detail View -->
+            <div class="tab-pane" id="student-detail-pane">
+                <!-- Back Button -->
+                <div class="mb-4">
+                    <button id="back-to-students" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </button>
+                </div>
+
+                <!-- Student Header -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 id="student-name" class="mb-0"></h3>
+                        </div>
+                        <button id="delete-student-btn" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash"></i> Delete Student
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3 id="student-predicted"></h3>
+                                <p>Predicted Grade</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="student-letter-grade"></h3>
+                                <p>Letter Grade</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="student-z-score"></h3>
+                                <p>Z-Score</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Missing Assignment Prediction -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="card-title">What-If Scenarios</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-card best-case">
+                                <h3 id="best-case-grade"></h3>
+                                <p>Best Case (100%)</p>
+                            </div>
+                            <div class="stat-card worst-case">
+                                <h3 id="worst-case-grade"></h3>
+                                <p>Worst Case (0%)</p>
+                            </div>
+                            <div class="stat-card current-grade">
+                                <h3 id="current-grade"></h3>
+                                <p>Current Grade</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assessments and Charts -->
+                <div class="charts-grid">
+                    <!-- Assessments List -->
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4>Assessments</h4>
+                            <button id="add-assessment-btn" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Add Assessment
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="assessments-list">
+                                <!-- Assessments will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title">Assessment Analysis</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container assessment-scores">
+                                <h5 class="chart-title">Assessment Scores</h5>
+                                <canvas id="scores-chart"></canvas>
+                            </div>
+                            <div class="chart-container weight-distribution">
+                                <h5 style="font-size: var(--text-base); font-weight: 600; color: var(--primary-slate-700); text-align: center; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.025em;">Weight Distribution</h5>
+                                <canvas id="weights-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Teacher Modal -->
+    <div id="add-teacher-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Teacher</h3>
+                <button class="close-modal" id="close-teacher-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-teacher-form">
+                    <div class="form-group">
+                        <label class="form-label">Teacher Name</label>
+                        <input type="text" id="teacher-name-input" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email (Optional)</label>
+                        <input type="email" id="teacher-email-input" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-teacher-modal">Cancel</button>
+                <button type="submit" form="add-teacher-form" class="btn btn-primary">Add Teacher</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Class Modal -->
+    <div id="add-class-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Class</h3>
+                <button class="close-modal" id="close-class-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-class-form">
+                    <div class="form-group">
+                        <label class="form-label">Teacher</label>
+                        <select id="class-teacher-select" class="form-control" required>
+                            <option value="">Select a teacher...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Class Name</label>
+                        <input type="text" id="class-name-input" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject</label>
+                        <input type="text" id="class-subject-input" class="form-control" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Year</label>
+                            <input type="text" id="class-year-input" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Semester</label>
+                            <input type="text" id="class-semester-input" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Grading Scale</label>
+                        <select id="class-grading-select" class="form-control">
+                            <option value="letter">Letter Grades (A-E)</option>
+                            <option value="hsc">HSC Bands (1-6)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-class-modal">Cancel</button>
+                <button type="submit" form="add-class-form" class="btn btn-primary">Add Class</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="add-student-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Student</h3>
+                <button class="close-modal" id="close-student-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-student-form">
+                    <div class="form-group">
+                        <label class="form-label">Student ID</label>
+                        <input type="text" id="student-id-input" class="form-control" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input type="text" id="student-first-name-input" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" id="student-last-name-input" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email (Optional)</label>
+                        <input type="email" id="student-email-input" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-student-modal">Cancel</button>
+                <button type="submit" form="add-student-form" class="btn btn-primary">Add Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Assessment Modal -->
+    <div id="add-assessment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Assessment</h3>
+                <button class="close-modal" id="close-assessment-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-assessment-form">
+                    <div class="form-group">
+                        <label class="form-label">Assessment Name</label>
+                        <input type="text" id="assessment-name-input" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Weight %</label>
+                        <input type="number" id="assessment-weight-input" class="form-control" min="0" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Due Date (Optional)</label>
+                        <input type="date" id="assessment-due-date-input" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea id="assessment-description-input" class="form-control" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-assessment-modal">Cancel</button>
+                <button type="submit" form="add-assessment-form" class="btn btn-primary">Add Assessment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Students Modal -->
+    <div id="import-students-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Import Students from CSV</h3>
+                <button class="close-modal" id="close-import-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Import Mode Selection -->
+                <div class="mb-4">
+                    <h4><i class="fas fa-upload"></i> Import Mode</h4>
+                    <div class="form-group">
+                        <label class="form-label">What do you want to import?</label>
+                        <select id="import-mode-select" class="form-control">
+                            <option value="students-only">Students Only (no grades)</option>
+                            <option value="students-and-grades">Students + Grades (complete data)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- CSV Format Instructions -->
+                <div class="alert alert-info mb-4" id="csv-format-info">
+                    <h4><i class="fas fa-info-circle"></i> CSV Format Requirements</h4>
+                    
+                    <!-- Students Only Format -->
+                    <div id="students-only-format">
+                        <p>For <strong>Students Only</strong> import, your CSV must have these columns:</p>
+                        <div class="csv-format-example">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr class="csv-table-header">
+                                        <th>student_id</th>
+                                        <th>first_name</th>
+                                        <th>last_name</th>
+                                        <th>email</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="csv-table-data">
+                                        <td>STU001</td>
+                                        <td>John</td>
+                                        <td>Smith</td>
+                                        <td>john.smith@school.edu</td>
+                                    </tr>
+                                    <tr class="csv-table-data">
+                                        <td>STU002</td>
+                                        <td>Jane</td>
+                                        <td>Doe</td>
+                                        <td>jane.doe@school.edu</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Students + Grades Format -->
+                    <div id="students-and-grades-format" class="hidden">
+                        <p>For <strong>Students + Grades</strong> import, your CSV must have:</p>
+                        <ul>
+                            <li><strong>Required:</strong> student_id, first_name, last_name, email</li>
+                            <li><strong>Assessment Grades:</strong> One column per assessment named "AssessmentName_score"</li>
+                            <li><strong>Flexible:</strong> Add as many assessment columns as needed</li>
+                            <li><strong>Empty Cells:</strong> Leave blank if student hasn't completed assessment</li>
+                            <li><strong>Optional:</strong> predicted_grade, total_weighted_score (auto-calculated)</li>
+                        </ul>
+                        <div class="csv-format-example">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr class="csv-table-small">
+                                        <th>student_id</th>
+                                        <th>first_name</th>
+                                        <th>last_name</th>
+                                        <th>email</th>
+                                        <th>Quiz 1_score</th>
+                                        <th>Quiz 2_score</th>
+                                        <th>Assign 1_score</th>
+                                        <th>Assign 2_score</th>
+                                        <th>Final_score</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="csv-table-body-small">
+                                    <tr class="csv-table-data">
+                                        <td>STU001</td>
+                                        <td>John</td>
+                                        <td>Smith</td>
+                                        <td>john@school.edu</td>
+                                        <td>85</td>
+                                        <td>78</td>
+                                        <td>92</td>
+                                        <td>88</td>
+                                        <td>90</td>
+                                    </tr>
+                                    <tr class="csv-table-data">
+                                        <td>STU002</td>
+                                        <td>Jane</td>
+                                        <td>Doe</td>
+                                        <td>jane@school.edu</td>
+                                        <td>78</td>
+                                        <td class="csv-empty-cell"><em>empty</em></td>
+                                        <td>95</td>
+                                        <td>91</td>
+                                        <td class="csv-empty-cell"><em>empty</em></td>
+                                    </tr>
+                                    <tr class="csv-table-data">
+                                        <td>STU003</td>
+                                        <td>Mike</td>
+                                        <td>Johnson</td>
+                                        <td>mike@school.edu</td>
+                                        <td>92</td>
+                                        <td>88</td>
+                                        <td>88</td>
+                                        <td class="csv-empty-cell"><em>empty</em></td>
+                                        <td>94</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <small class="text-info"><i class="fas fa-info-circle"></i> Yellow cells show empty grades - these won't be imported/updated</small>
+                        </div>
+                        <div class="alert alert-success mt-2">
+                            <h6><i class="fas fa-lightbulb"></i> How It Works:</h6>
+                            <ul class="mb-0 text-small">
+                                <li><strong>Add Extra Columns:</strong> Assignment 2_score, Assignment 3_score, Quiz 5_score, etc.</li>
+                                <li><strong>Column Order:</strong> Doesn't matter - put assessment columns in any order</li>
+                                <li><strong>Empty Cells:</strong> Leave blank for incomplete assessments (won't overwrite existing grades)</li>
+                                <li><strong>New Assessments:</strong> Columns for non-existent assessments are ignored (no error)</li>
+                                <li><strong>Existing Assessments:</strong> Must match exact assessment names in your class</li>
+                            </ul>
+                        </div>
+                        <div class="alert alert-info mt-2">
+                            <small><i class="fas fa-download"></i> <strong>Best Practice:</strong> Export your current class first to see the exact assessment names and format.</small>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" id="download-sample-csv" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i> Download Sample CSV Template
+                        </button>
+                        <button type="button" id="export-current-class" class="btn btn-sm btn-outline-success hidden">
+                            <i class="fas fa-download"></i> Export Current Class Format
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File Upload Form -->
+                <form id="import-students-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label">Select CSV File</label>
+                        <input type="file" id="csv-file-input" class="form-control" accept=".csv" required>
+                        <div class="mt-2">
+                            <small class="text-success"><i class="fas fa-check"></i> Required: student_id, first_name, last_name</small><br>
+                            <small class="text-info"><i class="fas fa-info"></i> Optional: email</small><br>
+                            <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Make sure your file is saved as UTF-8 CSV format</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-import-modal">Cancel</button>
+                <button type="submit" form="import-students-form" class="btn btn-primary">Import Students</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

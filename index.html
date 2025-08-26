@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartGrades - Multi-Student Grade Predictor & Class Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background: linear-gradient(to bottom, #f8fafc, #ffffff);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .navbar .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: #1e293b;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logo-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 0.75rem;
+            text-decoration: none;
+            color: #64748b;
+            border-radius: 12px;
+            transition: background-color 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .nav-link:hover {
+            background-color: #f1f5f9;
+        }
+
+        .nav-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-primary {
+            background: #1e293b;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            padding: 2rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            margin-top: 2.5rem;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            right: -64px;
+            top: -64px;
+            width: 256px;
+            height: 256px;
+            background: linear-gradient(135deg, #e2e8f0, white);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-subtitle {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero-description {
+            max-width: 32rem;
+            color: #64748b;
+            margin-bottom: 1.5rem;
+            font-size: 1.125rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-large {
+            padding: 0.75rem 1.25rem;
+            border-radius: 16px;
+        }
+
+        .steps {
+            margin-top: 2.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .step-card {
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            padding: 1.25rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #f8fafc;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .cta {
+            margin-top: 2.5rem;
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #1e293b, #475569);
+            padding: 2rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            color: white;
+        }
+
+        .cta-content {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .cta-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .cta-description {
+            color: #cbd5e1;
+        }
+
+        .btn-white {
+            background: white;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .features {
+            margin-top: 2.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .feature-card {
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: #1e293b;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-description {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .section-header {
+            text-align: center;
+            margin: 3rem 0 2rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-subtitle {
+            color: #64748b;
+            font-size: 1.125rem;
+        }
+
+        @media (max-width: 768px) {
+            .navbar .container {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .hero-title {
+                font-size: 1.875rem;
+            }
+
+            .cta-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .steps {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .fade-in-delay-1 {
+            animation-delay: 0.1s;
+        }
+
+        .fade-in-delay-2 {
+            animation-delay: 0.2s;
+        }
+
+        .fade-in-delay-3 {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <div class="logo-icon">SG</div>
+                <div class="logo-text">SmartGrades</div>
+            </div>
+            <div class="nav-links">
+                <a href="#home" class="nav-link">Home</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+            </div>
+            <div class="nav-buttons">
+                <a href="app.html" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Get Started
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container" style="padding-bottom: 6rem;">
+        <!-- Hero Section -->
+        <section id="home" class="hero fade-in">
+            <div class="hero-content">
+                <p class="hero-subtitle">Multi-Student Grade Management System</p>
+                <h1 class="hero-title">Manage classes, predict grades, and track student progress</h1>
+                <p class="hero-description">A comprehensive teacher-class-student management system with advanced grade prediction, analytics, and class performance insights. Perfect for educators managing multiple classes and students.</p>
+                <div class="hero-buttons">
+                    <a href="app.html" class="btn btn-primary btn-large">Start Managing Classes</a>
+                    <a href="#how-it-works" class="btn btn-secondary btn-large">
+                        <i class="fas fa-info-circle"></i> How It Works
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features">
+            <div class="section-header fade-in fade-in-delay-1">
+                <h2 class="section-title">Comprehensive Class Management</h2>
+                <p class="section-subtitle">Everything you need to manage students, assessments, and track performance</p>
+            </div>
+            <div class="features">
+                <div class="feature-card fade-in fade-in-delay-1">
+                    <div class="feature-icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <h3 class="feature-title">Teacher Management</h3>
+                    <p class="feature-description">Create and manage multiple teachers, each with their own classes and students.</p>
+                </div>
+                <div class="feature-card fade-in fade-in-delay-2">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="feature-title">Class Organization</h3>
+                    <p class="feature-description">Organize students by classes with different subjects, years, and grading scales.</p>
+                </div>
+                <div class="feature-card fade-in fade-in-delay-3">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Grade Prediction</h3>
+                    <p class="feature-description">Advanced algorithms predict final grades and show what students need to achieve their goals.</p>
+                </div>
+                <div class="feature-card fade-in fade-in-delay-1">
+                    <div class="feature-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h3 class="feature-title">Assessment Tracking</h3>
+                    <p class="feature-description">Create weighted assessments and track scores across all students and classes.</p>
+                </div>
+                <div class="feature-card fade-in fade-in-delay-2">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3 class="feature-title">Analytics Dashboard</h3>
+                    <p class="feature-description">Visualize class performance with charts, grade distributions, and statistical analysis.</p>
+                </div>
+                <div class="feature-card fade-in fade-in-delay-3">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-import"></i>
+                    </div>
+                    <h3 class="feature-title">CSV Import/Export</h3>
+                    <p class="feature-description">Easily import student lists and export class data for reporting and backup.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works">
+            <div class="section-header fade-in fade-in-delay-1">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">Get started in three simple steps</p>
+            </div>
+            <div class="steps">
+                <div class="step-card fade-in fade-in-delay-1">
+                    <div class="step-badge">
+                        <i class="fas fa-user-plus"></i> Step 1
+                    </div>
+                    <h3 class="step-title">Create Teachers & Classes</h3>
+                    <p class="step-description">Add teachers to the system and create classes for different subjects, years, and semesters.</p>
+                </div>
+                <div class="step-card fade-in fade-in-delay-2">
+                    <div class="step-badge">
+                        <i class="fas fa-users"></i> Step 2
+                    </div>
+                    <h3 class="step-title">Add Students & Assessments</h3>
+                    <p class="step-description">Enroll students in classes and create weighted assessments with due dates and descriptions.</p>
+                </div>
+                <div class="step-card fade-in fade-in-delay-3">
+                    <div class="step-badge">
+                        <i class="fas fa-chart-bar"></i> Step 3
+                    </div>
+                    <h3 class="step-title">Track Progress & Analyze</h3>
+                    <p class="step-description">Enter grades, view predictions, and analyze class performance with detailed charts and statistics.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="cta fade-in fade-in-delay-1">
+            <div class="cta-content">
+                <div>
+                    <h3 class="cta-title">Ready to streamline your class management?</h3>
+                    <p class="cta-description">No complex setup required. Start managing your classes and predicting student grades instantly.</p>
+                </div>
+                <div>
+                    <a href="app.html" class="btn btn-white btn-large">Launch SmartGrades</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all sections for animation
+        document.querySelectorAll('section').forEach(section => {
+            observer.observe(section);
+        });
+
+        // Add some interactive hover effects
+        document.querySelectorAll('.feature-card, .step-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.1)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+            });
+        });
+    </script>
+</body>
+</html>

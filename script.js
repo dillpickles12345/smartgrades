@@ -229,7 +229,6 @@ class SmartGrades {
         
         // Assessment modal
         document.getElementById('add-assessment-btn').addEventListener('click', () => this.showAddAssessmentModal());
-        document.getElementById('test-ai-predictions').addEventListener('click', () => this.testAIPredictions());
         document.getElementById('close-assessment-modal').addEventListener('click', () => this.hideModal('add-assessment-modal'));
         document.getElementById('cancel-assessment-modal').addEventListener('click', () => this.hideModal('add-assessment-modal'));
         
@@ -1154,98 +1153,8 @@ class SmartGrades {
         if (currentElement) {
             this.animateNumber('current-grade', calculations.predicted);
         }
-        
-        // Add AI prediction insights for missing assessments
-        this.updateAIPredictionInsights(calculations);
     }
 
-    async testAIPredictions() {
-        /**
-         * Manual test trigger for AI predictions
-         */
-        console.log('Manual AI prediction test triggered');
-        
-        if (!this.currentStudent) {
-            alert('Please select a student first');
-            return;
-        }
-
-        try {
-            console.log('Testing AI predictions for student:', this.currentStudent);
-            
-            // Force update AI predictions
-            const response = await fetch(`/api/students/${this.currentStudent.enrollment_id}/grades`);
-            const data = await response.json();
-            
-            await this.updateAIPredictionInsights(data.calculations);
-        } catch (error) {
-            console.error('Test AI predictions failed:', error);
-            alert('AI prediction test failed: ' + error.message);
-        }
-    }
-
-    async updateAIPredictionInsights(calculations) {
-        /**
-         * Add AI-powered predictions for missing assessments
-         * Shows detailed analysis and confidence scores
-         */
-        try {
-            // Debug logging
-            console.log('AI Prediction Check:', {
-                currentStudent: !!this.currentStudent,
-                remainingWeight: calculations.remaining_weight,
-                studentId: this.currentStudent?.enrollment_id
-            });
-
-            if (!this.currentStudent) {
-                console.log('No current student - hiding AI panel');
-                this.hideAIPredictionPanel();
-                return;
-            }
-
-            // Get missing assessments for this student
-            const missingAssessments = await this.getMissingAssessments(this.currentStudent.enrollment_id);
-            console.log('Missing assessments found:', missingAssessments.length);
-            
-            if (missingAssessments.length === 0) {
-                console.log('No missing assessments - hiding AI panel');
-                this.hideAIPredictionPanel();
-                return;
-            }
-
-            // Generate AI predictions for each missing assessment
-            console.log('Generating AI predictions for assessments:', missingAssessments.map(a => a.name));
-            const predictions = await Promise.all(
-                missingAssessments.map(assessment => 
-                    this.getAIAssessmentPrediction(this.currentStudent.enrollment_id, assessment.id)
-                )
-            );
-
-            console.log('AI predictions generated:', predictions.length, 'successful predictions:', predictions.filter(p => p !== null).length);
-
-            // Display AI prediction panel
-            this.showAIPredictionPanel(predictions, missingAssessments);
-
-        } catch (error) {
-            console.warn('AI prediction insights unavailable:', error);
-            this.hideAIPredictionPanel();
-        }
-    }
-
-    async getMissingAssessments(enrollmentId) {
-        /**
-         * Get list of assessments without grades for this student
-         */
-        try {
-            const response = await fetch(`/api/students/${enrollmentId}/grades`);
-            const data = await response.json();
-            
-            return data.grades.filter(grade => grade.score === null);
-        } catch (error) {
-            console.error('Error fetching missing assessments:', error);
-            return [];
-        }
-    }
 
     async getAIAssessmentPrediction(enrollmentId, assessmentId) {
         /**
@@ -1533,8 +1442,17 @@ class SmartGrades {
                                min="0" max="100" 
                                value="${grade.score || ''}" 
                                placeholder="Score"
+                               id="score-input-${grade.assessment_id}"
                                onchange="app.updateStudentGrade(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, this.value)">
                         <small class="text-secondary">%</small>
+                        ${grade.score === null ? `
+                            <button class="btn btn-info btn-sm" 
+                                    onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id})" 
+                                    title="AI Predict Score"
+                                    id="predict-btn-${grade.assessment_id}">
+                                <i class="fas fa-robot"></i>
+                            </button>
+                        ` : ''}
                         <button class="btn btn-outline-primary btn-sm" onclick="app.editAssessment(${grade.assessment_id})" title="Edit Assessment">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1545,6 +1463,53 @@ class SmartGrades {
                 </div>
             </div>
         `).join('');
+    }
+
+    async predictAndFillScore(enrollmentId, assessmentId) {
+        try {
+            // Show loading state
+            const predictBtn = document.getElementById(`predict-btn-${assessmentId}`);
+            const scoreInput = document.getElementById(`score-input-${assessmentId}`);
+            
+            if (predictBtn) {
+                predictBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                predictBtn.disabled = true;
+            }
+
+            console.log('Predicting score for assessment:', assessmentId);
+
+            // Get AI prediction
+            const prediction = await this.getAIAssessmentPrediction(enrollmentId, assessmentId);
+            
+            if (prediction && prediction.ai_prediction) {
+                // Fill the predicted score into the input field
+                const predictedScore = Math.round(prediction.ai_prediction.predicted_score * 10) / 10; // Round to 1 decimal
+                scoreInput.value = predictedScore;
+                
+                // Change input styling to show it's AI predicted
+                scoreInput.style.backgroundColor = '#e3f2fd';
+                scoreInput.style.borderColor = '#2196f3';
+                
+                // Show success message with confidence
+                const confidence = Math.round(prediction.ai_prediction.confidence_level * 100);
+                this.showNotification(`AI Predicted: ${predictedScore}% (${confidence}% confidence)`, 'success');
+                
+                console.log('AI prediction filled:', predictedScore, 'with confidence:', confidence + '%');
+            } else {
+                this.showNotification('AI prediction failed - insufficient data', 'error');
+            }
+
+        } catch (error) {
+            console.error('Error predicting score:', error);
+            this.showNotification('AI prediction failed: ' + error.message, 'error');
+        } finally {
+            // Restore button state
+            const predictBtn = document.getElementById(`predict-btn-${assessmentId}`);
+            if (predictBtn) {
+                predictBtn.innerHTML = '<i class="fas fa-robot"></i>';
+                predictBtn.disabled = false;
+            }
+        }
     }
 
     async updateStudentGrade(enrollmentId, assessmentId, score) {

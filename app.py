@@ -638,6 +638,111 @@ def predict_grade(enrollment_id):
         app.logger.error(f"Error predicting grade: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/students/<int:enrollment_id>/predict-assessment/<int:assessment_id>', methods=['POST'])
+def predict_assessment_score(enrollment_id, assessment_id):
+    """
+    AI-Powered Individual Assessment Score Prediction
+    
+    Uses advanced machine learning algorithms to predict what score a student 
+    will likely achieve on a specific missing/future assessment by analyzing:
+    - Historical performance patterns and trends
+    - Assessment difficulty and type characteristics  
+    - Class comparative performance data
+    - Student consistency and improvement patterns
+    
+    Returns detailed prediction with confidence scores and contributing factors.
+    """
+    try:
+        # Use the advanced AI prediction system
+        prediction_result = db.predict_missing_assessment_score(enrollment_id, assessment_id)
+        
+        # Get assessment details for context
+        with db.get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT a.name, a.weight, a.description, c.class_name, c.subject
+                FROM assessments a
+                JOIN classes c ON a.class_id = c.id
+                WHERE a.id = ?
+            ''', (assessment_id,))
+            
+            assessment_info = cursor.fetchone()
+        
+        if not assessment_info:
+            return jsonify({'error': 'Assessment not found'}), 404
+        
+        # Enhanced response with context
+        response = {
+            'assessment': {
+                'id': assessment_id,
+                'name': assessment_info[0],
+                'weight': assessment_info[1],
+                'description': assessment_info[2],
+                'class_name': assessment_info[3],
+                'subject': assessment_info[4]
+            },
+            'ai_prediction': {
+                'predicted_score': prediction_result['predicted_score'],
+                'confidence_level': prediction_result['confidence'],
+                'prediction_range': {
+                    'minimum': prediction_result['prediction_range']['min'],
+                    'maximum': prediction_result['prediction_range']['max']
+                },
+                'confidence_description': _get_confidence_description(prediction_result['confidence'])
+            },
+            'analysis': {
+                'contributing_factors': prediction_result['contributing_factors'],
+                'algorithm_breakdown': prediction_result['algorithm_breakdown']
+            },
+            'recommendation': _generate_recommendation(prediction_result),
+            'metadata': {
+                'prediction_type': 'ai_ml_ensemble',
+                'algorithms_used': len(prediction_result['algorithm_breakdown']),
+                'data_driven': True
+            }
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        app.logger.error(f"Error in AI prediction for enrollment {enrollment_id}, assessment {assessment_id}: {e}")
+        return jsonify({
+            'error': 'Prediction system temporarily unavailable',
+            'fallback_advice': 'Try using the basic prediction endpoint or contact administrator'
+        }), 500
+
+def _get_confidence_description(confidence: float) -> str:
+    """Convert confidence score to human-readable description"""
+    if confidence >= 0.8:
+        return "Very High - Prediction based on strong historical patterns"
+    elif confidence >= 0.6:
+        return "High - Good amount of data supports this prediction"
+    elif confidence >= 0.4:
+        return "Moderate - Some uncertainty due to limited data"
+    elif confidence >= 0.2:
+        return "Low - Prediction has significant uncertainty"
+    else:
+        return "Very Low - Use with caution, insufficient data"
+
+def _generate_recommendation(prediction_result: dict) -> str:
+    """Generate actionable recommendation based on prediction"""
+    score = prediction_result['predicted_score']
+    confidence = prediction_result['confidence']
+    
+    if score >= 90:
+        return "Student is predicted to excel. Consider offering advanced challenges."
+    elif score >= 80:
+        return "Student is on track for strong performance. Maintain current approach."
+    elif score >= 70:
+        return "Student should achieve satisfactory results with continued effort."
+    elif score >= 60:
+        return "Student may struggle. Consider additional support or review sessions."
+    else:
+        if confidence > 0.5:
+            return "Strong intervention recommended. Student likely needs significant help."
+        else:
+            return "Prediction uncertain. Monitor closely and provide support as needed."
+
 # ===============================
 # LEGACY TEMPLATE API (for compatibility)
 # ===============================

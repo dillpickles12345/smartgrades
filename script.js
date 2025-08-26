@@ -7,10 +7,7 @@
  * - Statistical analysis with bell curve grading
  * - Real-time data visualization and analytics
  * - Performance-optimized with intelligent caching
- * 
- * @author SmartGrades Development Team
- * @version 2.0.0
- * @since 2024
+
  * 
  * CODE STRUCTURE OVERVIEW:
  * ========================
@@ -1156,6 +1153,232 @@ class SmartGrades {
         if (currentElement) {
             this.animateNumber('current-grade', calculations.predicted);
         }
+        
+        // Add AI prediction insights for missing assessments
+        this.updateAIPredictionInsights(calculations);
+    }
+
+    async updateAIPredictionInsights(calculations) {
+        /**
+         * Add AI-powered predictions for missing assessments
+         * Shows detailed analysis and confidence scores
+         */
+        try {
+            if (!this.currentStudent || calculations.remaining_weight === 0) {
+                this.hideAIPredictionPanel();
+                return;
+            }
+
+            // Get missing assessments for this student
+            const missingAssessments = await this.getMissingAssessments(this.currentStudent.enrollment_id);
+            
+            if (missingAssessments.length === 0) {
+                this.hideAIPredictionPanel();
+                return;
+            }
+
+            // Generate AI predictions for each missing assessment
+            const predictions = await Promise.all(
+                missingAssessments.map(assessment => 
+                    this.getAIAssessmentPrediction(this.currentStudent.enrollment_id, assessment.id)
+                )
+            );
+
+            // Display AI prediction panel
+            this.showAIPredictionPanel(predictions, missingAssessments);
+
+        } catch (error) {
+            console.warn('AI prediction insights unavailable:', error);
+            this.hideAIPredictionPanel();
+        }
+    }
+
+    async getMissingAssessments(enrollmentId) {
+        /**
+         * Get list of assessments without grades for this student
+         */
+        try {
+            const response = await fetch(`/api/students/${enrollmentId}/grades`);
+            const data = await response.json();
+            
+            return data.grades.filter(grade => grade.score === null);
+        } catch (error) {
+            console.error('Error fetching missing assessments:', error);
+            return [];
+        }
+    }
+
+    async getAIAssessmentPrediction(enrollmentId, assessmentId) {
+        /**
+         * Get AI-powered prediction for a specific assessment
+         */
+        try {
+            const response = await fetch(
+                `/api/students/${enrollmentId}/predict-assessment/${assessmentId}`, 
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`Error getting AI prediction for assessment ${assessmentId}:`, error);
+            return null;
+        }
+    }
+
+    showAIPredictionPanel(predictions, assessments) {
+        /**
+         * Display AI prediction panel with detailed insights
+         */
+        // Find or create AI prediction container
+        let aiContainer = document.getElementById('ai-prediction-panel');
+        if (!aiContainer) {
+            aiContainer = this.createAIPredictionPanel();
+        }
+
+        // Generate HTML for predictions
+        const predictionsHTML = predictions
+            .filter(pred => pred !== null)
+            .map((prediction, index) => {
+                const assessment = assessments[index];
+                return this.generateAIPredictionHTML(prediction, assessment);
+            })
+            .join('');
+
+        aiContainer.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="fas fa-robot"></i> AI Assessment Predictions
+                    </h4>
+                    <p class="text-muted mb-0">Machine learning analysis of expected performance</p>
+                </div>
+                <div class="card-body">
+                    ${predictionsHTML}
+                </div>
+            </div>
+        `;
+
+        aiContainer.style.display = 'block';
+    }
+
+    generateAIPredictionHTML(prediction, assessment) {
+        /**
+         * Generate HTML for individual AI prediction
+         */
+        const confidenceColor = this.getConfidenceColor(prediction.ai_prediction.confidence_level);
+        const scoreColor = this.getScoreColor(prediction.ai_prediction.predicted_score);
+
+        return `
+            <div class="ai-prediction-item">
+                <div class="prediction-header">
+                    <h5>${assessment.name}</h5>
+                    <span class="badge badge-secondary">${assessment.weight}% weight</span>
+                </div>
+                
+                <div class="prediction-content">
+                    <div class="prediction-score">
+                        <div class="score-display" style="color: ${scoreColor}">
+                            ${prediction.ai_prediction.predicted_score.toFixed(1)}%
+                        </div>
+                        <div class="score-range">
+                            Range: ${prediction.ai_prediction.prediction_range.minimum.toFixed(1)}% - 
+                            ${prediction.ai_prediction.prediction_range.maximum.toFixed(1)}%
+                        </div>
+                    </div>
+                    
+                    <div class="confidence-indicator">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" 
+                                 style="width: ${prediction.ai_prediction.confidence_level * 100}%; background-color: ${confidenceColor}">
+                            </div>
+                        </div>
+                        <small class="confidence-text">${prediction.ai_prediction.confidence_description}</small>
+                    </div>
+                </div>
+
+                <div class="prediction-analysis">
+                    <div class="contributing-factors">
+                        <h6>Key Factors:</h6>
+                        <ul>
+                            ${prediction.analysis.contributing_factors.map(factor => `<li>${factor}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="recommendation">
+                        <strong>Recommendation:</strong> ${prediction.recommendation}
+                    </div>
+                </div>
+
+                <div class="algorithm-breakdown">
+                    <details>
+                        <summary>Algorithm Analysis</summary>
+                        ${Object.entries(prediction.analysis.algorithm_breakdown)
+                            .map(([alg, score]) => 
+                                `<div class="algorithm-item">
+                                    <span class="algorithm-name">${alg.replace('_', ' ')}:</span>
+                                    <span class="algorithm-score">${score.toFixed(1)}%</span>
+                                </div>`
+                            ).join('')}
+                    </details>
+                </div>
+            </div>
+        `;
+    }
+
+    createAIPredictionPanel() {
+        /**
+         * Create the AI prediction panel container
+         */
+        const container = document.createElement('div');
+        container.id = 'ai-prediction-panel';
+        container.className = 'ai-prediction-panel';
+        container.style.display = 'none';
+
+        // Insert after the What-If Scenarios card
+        const scenarioCard = document.querySelector('.card-title').closest('.card');
+        scenarioCard.parentNode.insertBefore(container, scenarioCard.nextSibling);
+
+        return container;
+    }
+
+    hideAIPredictionPanel() {
+        /**
+         * Hide the AI prediction panel
+         */
+        const aiContainer = document.getElementById('ai-prediction-panel');
+        if (aiContainer) {
+            aiContainer.style.display = 'none';
+        }
+    }
+
+    getConfidenceColor(confidence) {
+        /**
+         * Get color for confidence level visualization
+         */
+        if (confidence >= 0.8) return '#22c55e'; // Green - Very High
+        if (confidence >= 0.6) return '#3b82f6'; // Blue - High  
+        if (confidence >= 0.4) return '#f59e0b'; // Yellow - Moderate
+        if (confidence >= 0.2) return '#ef4444'; // Red - Low
+        return '#6b7280'; // Gray - Very Low
+    }
+
+    getScoreColor(score) {
+        /**
+         * Get color for predicted score visualization
+         */
+        if (score >= 90) return '#22c55e'; // Green - A
+        if (score >= 80) return '#3b82f6'; // Blue - B
+        if (score >= 70) return '#f59e0b'; // Yellow - C
+        if (score >= 60) return '#ef4444'; // Red - D
+        return '#6b7280'; // Gray - E
     }
 
     updateScenarioLabels(sectionTitle, bestLabel, worstLabel) {

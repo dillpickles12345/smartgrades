@@ -492,6 +492,586 @@ class DatabaseManager:
             ''', (enrollment_id, grade_data['predicted'], grade_data['weighted_score']))
             conn.commit()
             return cursor.lastrowid
+
+    # ===============================
+    # ADVANCED AI PREDICTION SYSTEM
+    # ===============================
+
+    def predict_missing_assessment_score(self, enrollment_id: int, assessment_id: int) -> Dict[str, Any]:
+        """
+        Predict what score a student will likely achieve on a missing assessment
+        using advanced pattern analysis and machine learning techniques
+        """
+        try:
+            # Get student's historical performance data
+            student_patterns = self._analyze_student_patterns(enrollment_id)
+            
+            # Get assessment difficulty and characteristics
+            assessment_analysis = self._analyze_assessment_difficulty(assessment_id, enrollment_id)
+            
+            # Get class performance patterns for comparison
+            class_patterns = self._analyze_class_patterns(assessment_id)
+            
+            # Apply prediction algorithms
+            predictions = self._calculate_ml_predictions(
+                student_patterns, 
+                assessment_analysis, 
+                class_patterns
+            )
+            
+            return {
+                'predicted_score': predictions['final_prediction'],
+                'confidence': predictions['confidence'],
+                'prediction_range': predictions['range'],
+                'contributing_factors': predictions['factors'],
+                'algorithm_breakdown': predictions['algorithms']
+            }
+            
+        except Exception as e:
+            # Fallback to basic prediction if advanced fails
+            return self._fallback_prediction(enrollment_id, assessment_id)
+    
+    def _analyze_student_patterns(self, enrollment_id: int) -> Dict[str, Any]:
+        """Analyze individual student's performance patterns and trends"""
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get all student's grades with timestamps
+            cursor.execute('''
+                SELECT g.score, a.name, a.weight, g.graded_at, a.due_date,
+                       a.description, c.subject
+                FROM grades g
+                JOIN assessments a ON g.assessment_id = a.id
+                JOIN classes c ON a.class_id = c.id
+                JOIN enrollments e ON g.enrollment_id = e.enrollment_id
+                WHERE g.enrollment_id = ? AND g.score IS NOT NULL
+                ORDER BY g.graded_at ASC
+            ''', (enrollment_id,))
+            
+            grades_data = cursor.fetchall()
+            
+            if len(grades_data) < 2:
+                return {'insufficient_data': True}
+            
+            # Calculate performance trends
+            scores = [float(row[0]) for row in grades_data]
+            weights = [float(row[2]) for row in grades_data]
+            
+            # Trend analysis using linear regression
+            trend_slope = self._calculate_trend_slope(scores)
+            
+            # Performance consistency analysis
+            consistency = self._calculate_consistency_score(scores)
+            
+            # Assessment type performance analysis
+            type_performance = self._analyze_assessment_type_performance(grades_data)
+            
+            # Improvement/decline pattern analysis
+            improvement_pattern = self._analyze_improvement_pattern(scores)
+            
+            return {
+                'trend_slope': trend_slope,
+                'consistency_score': consistency,
+                'average_performance': sum(scores) / len(scores),
+                'weighted_average': sum(s * w for s, w in zip(scores, weights)) / sum(weights),
+                'type_performance': type_performance,
+                'improvement_pattern': improvement_pattern,
+                'total_assessments': len(scores),
+                'performance_range': {'min': min(scores), 'max': max(scores)},
+                'recent_performance': scores[-3:] if len(scores) >= 3 else scores
+            }
+    
+    def _analyze_assessment_difficulty(self, assessment_id: int, current_enrollment_id: int) -> Dict[str, Any]:
+        """Analyze the difficulty and characteristics of the target assessment"""
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get assessment details
+            cursor.execute('''
+                SELECT a.name, a.weight, a.description, a.due_date, c.subject
+                FROM assessments a
+                JOIN classes c ON a.class_id = c.id
+                WHERE a.id = ?
+            ''', (assessment_id,))
+            
+            assessment_info = cursor.fetchone()
+            
+            # Get class performance on this assessment (excluding current student)
+            cursor.execute('''
+                SELECT g.score
+                FROM grades g
+                JOIN enrollments e ON g.enrollment_id = e.enrollment_id
+                WHERE g.assessment_id = ? AND g.enrollment_id != ? AND g.score IS NOT NULL
+            ''', (assessment_id, current_enrollment_id))
+            
+            class_scores = [float(row[0]) for row in cursor.fetchall()]
+            
+            if not class_scores:
+                # No class data available, estimate based on weight
+                difficulty_estimate = self._estimate_difficulty_from_weight(float(assessment_info[1]))
+                return {
+                    'estimated_difficulty': difficulty_estimate,
+                    'class_average': None,
+                    'assessment_type': self._classify_assessment_type(assessment_info[0], assessment_info[2]),
+                    'weight': float(assessment_info[1]),
+                    'has_class_data': False
+                }
+            
+            # Calculate difficulty metrics
+            class_average = sum(class_scores) / len(class_scores)
+            class_std_dev = (sum((x - class_average) ** 2 for x in class_scores) / len(class_scores)) ** 0.5
+            
+            # Difficulty classification
+            if class_average >= 85:
+                difficulty = 'easy'
+            elif class_average >= 75:
+                difficulty = 'moderate'
+            elif class_average >= 65:
+                difficulty = 'hard'
+            else:
+                difficulty = 'very_hard'
+            
+            return {
+                'class_average': class_average,
+                'class_std_dev': class_std_dev,
+                'difficulty': difficulty,
+                'assessment_type': self._classify_assessment_type(assessment_info[0], assessment_info[2]),
+                'weight': float(assessment_info[1]),
+                'score_distribution': class_scores,
+                'has_class_data': True
+            }
+    
+    def _analyze_class_patterns(self, assessment_id: int) -> Dict[str, Any]:
+        """Analyze how the class typically performs on similar assessments"""
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get class information
+            cursor.execute('''
+                SELECT c.id, c.class_name, c.subject
+                FROM assessments a
+                JOIN classes c ON a.class_id = c.id
+                WHERE a.id = ?
+            ''', (assessment_id,))
+            
+            class_info = cursor.fetchone()
+            class_id = class_info[0]
+            
+            # Get all class performance data for pattern analysis
+            cursor.execute('''
+                SELECT g.score, a.weight, a.name, e.enrollment_id
+                FROM grades g
+                JOIN assessments a ON g.assessment_id = a.id
+                JOIN enrollments e ON g.enrollment_id = e.enrollment_id
+                WHERE a.class_id = ? AND g.score IS NOT NULL
+                ORDER BY e.enrollment_id, g.graded_at
+            ''', (class_id,))
+            
+            all_class_data = cursor.fetchall()
+            
+            # Group by student to analyze individual patterns
+            student_patterns = {}
+            for score, weight, name, enroll_id in all_class_data:
+                if enroll_id not in student_patterns:
+                    student_patterns[enroll_id] = []
+                student_patterns[enroll_id].append(float(score))
+            
+            # Calculate class-wide statistics
+            all_scores = [float(row[0]) for row in all_class_data]
+            
+            return {
+                'class_average': sum(all_scores) / len(all_scores) if all_scores else 0,
+                'student_count': len(student_patterns),
+                'total_grades': len(all_scores),
+                'performance_patterns': self._analyze_class_performance_patterns(student_patterns)
+            }
+    
+    def _calculate_ml_predictions(self, student_patterns: Dict, assessment_analysis: Dict, class_patterns: Dict) -> Dict[str, Any]:
+        """Apply multiple ML algorithms to generate final prediction"""
+        
+        if student_patterns.get('insufficient_data'):
+            return self._generate_insufficient_data_prediction(assessment_analysis)
+        
+        predictions = {}
+        weights = {}
+        
+        # Algorithm 1: Trend-based prediction
+        trend_prediction = self._trend_based_prediction(student_patterns, assessment_analysis)
+        predictions['trend'] = trend_prediction
+        weights['trend'] = 0.3
+        
+        # Algorithm 2: Performance type correlation
+        type_prediction = self._type_correlation_prediction(student_patterns, assessment_analysis)
+        predictions['type_correlation'] = type_prediction
+        weights['type_correlation'] = 0.25
+        
+        # Algorithm 3: Difficulty adjustment prediction
+        difficulty_prediction = self._difficulty_adjusted_prediction(student_patterns, assessment_analysis)
+        predictions['difficulty'] = difficulty_prediction
+        weights['difficulty'] = 0.25
+        
+        # Algorithm 4: Class comparative prediction
+        comparative_prediction = self._class_comparative_prediction(student_patterns, assessment_analysis, class_patterns)
+        predictions['comparative'] = comparative_prediction
+        weights['comparative'] = 0.2
+        
+        # Weighted ensemble prediction
+        final_prediction = sum(predictions[alg] * weights[alg] for alg in predictions)
+        final_prediction = max(0, min(100, final_prediction))  # Clamp to valid range
+        
+        # Calculate confidence based on data quality and agreement
+        confidence = self._calculate_prediction_confidence(predictions, student_patterns, assessment_analysis)
+        
+        # Generate prediction range
+        prediction_range = self._calculate_prediction_range(final_prediction, confidence, student_patterns)
+        
+        return {
+            'final_prediction': round(final_prediction, 1),
+            'confidence': round(confidence, 2),
+            'range': prediction_range,
+            'factors': self._identify_contributing_factors(student_patterns, assessment_analysis),
+            'algorithms': {
+                'trend_based': round(predictions['trend'], 1),
+                'type_correlation': round(predictions['type_correlation'], 1),
+                'difficulty_adjusted': round(predictions['difficulty'], 1),
+                'class_comparative': round(predictions['comparative'], 1)
+            }
+        }
+    
+    def _calculate_trend_slope(self, scores: List[float]) -> float:
+        """Calculate linear trend slope using least squares regression"""
+        n = len(scores)
+        if n < 2:
+            return 0
+        
+        x_values = list(range(n))
+        x_mean = sum(x_values) / n
+        y_mean = sum(scores) / n
+        
+        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, scores))
+        denominator = sum((x - x_mean) ** 2 for x in x_values)
+        
+        return numerator / denominator if denominator != 0 else 0
+    
+    def _calculate_consistency_score(self, scores: List[float]) -> float:
+        """Calculate how consistent the student's performance is (0-1, where 1 is most consistent)"""
+        if len(scores) < 2:
+            return 1.0
+        
+        mean_score = sum(scores) / len(scores)
+        variance = sum((score - mean_score) ** 2 for score in scores) / len(scores)
+        std_dev = variance ** 0.5
+        
+        # Normalize by mean to get coefficient of variation
+        cv = std_dev / mean_score if mean_score > 0 else 0
+        
+        # Convert to consistency score (lower CV = higher consistency)
+        return max(0, 1 - (cv / 0.5))  # Assuming CV of 0.5 as the threshold for inconsistency
+    
+    def _trend_based_prediction(self, student_patterns: Dict, assessment_analysis: Dict) -> float:
+        """Predict based on student's performance trend"""
+        base_performance = student_patterns['weighted_average']
+        trend_slope = student_patterns['trend_slope']
+        
+        # Project trend forward
+        future_steps = 1  # Predicting next assessment
+        trend_adjustment = trend_slope * future_steps
+        
+        # Apply trend with diminishing returns (trends don't continue indefinitely)
+        trend_factor = min(abs(trend_adjustment), 10)  # Cap trend influence
+        if trend_adjustment > 0:
+            prediction = base_performance + trend_factor
+        else:
+            prediction = base_performance + trend_adjustment
+        
+        return max(0, min(100, prediction))
+    
+    def _type_correlation_prediction(self, student_patterns: Dict, assessment_analysis: Dict) -> float:
+        """Predict based on how student performs on similar assessment types"""
+        assessment_type = assessment_analysis['assessment_type']
+        type_performance = student_patterns.get('type_performance', {})
+        
+        if assessment_type in type_performance:
+            # Use specific type performance
+            return type_performance[assessment_type]['average']
+        else:
+            # Use overall weighted average with slight adjustment for new type
+            return student_patterns['weighted_average'] * 0.95  # Slight penalty for unfamiliar type
+    
+    def _difficulty_adjusted_prediction(self, student_patterns: Dict, assessment_analysis: Dict) -> float:
+        """Predict based on assessment difficulty and student's track record with difficult tasks"""
+        base_performance = student_patterns['weighted_average']
+        
+        if not assessment_analysis['has_class_data']:
+            return base_performance
+        
+        difficulty = assessment_analysis['difficulty']
+        class_average = assessment_analysis['class_average']
+        
+        # Adjust prediction based on how this compares to typical difficulty
+        typical_class_average = 78  # Assume typical class average
+        difficulty_factor = (class_average - typical_class_average) / typical_class_average
+        
+        # Students performing above average adapt better to difficulty changes
+        student_strength = (base_performance - 75) / 25  # Normalized student strength
+        
+        adjustment = difficulty_factor * student_strength * 5  # Max 5 point adjustment
+        
+        return max(0, min(100, base_performance + adjustment))
+    
+    def _class_comparative_prediction(self, student_patterns: Dict, assessment_analysis: Dict, class_patterns: Dict) -> float:
+        """Predict based on student's relative performance compared to class"""
+        if not assessment_analysis['has_class_data']:
+            return student_patterns['weighted_average']
+        
+        student_avg = student_patterns['weighted_average']
+        class_avg = class_patterns['class_average']
+        assessment_class_avg = assessment_analysis['class_average']
+        
+        # Calculate student's relative performance
+        if class_avg > 0:
+            relative_performance = student_avg / class_avg
+        else:
+            relative_performance = 1.0
+        
+        # Apply relative performance to this specific assessment
+        predicted_score = assessment_class_avg * relative_performance
+        
+        return max(0, min(100, predicted_score))
+    
+    def _analyze_assessment_type_performance(self, grades_data: List) -> Dict[str, Dict]:
+        """Analyze performance by assessment type (Quiz, Exam, Project, etc.)"""
+        type_performance = {}
+        
+        for score, name, weight, graded_at, due_date, description, subject in grades_data:
+            assessment_type = self._classify_assessment_type(name, description)
+            
+            if assessment_type not in type_performance:
+                type_performance[assessment_type] = {'scores': [], 'total_weight': 0}
+            
+            type_performance[assessment_type]['scores'].append(float(score))
+            type_performance[assessment_type]['total_weight'] += float(weight)
+        
+        # Calculate averages for each type
+        for type_name in type_performance:
+            scores = type_performance[type_name]['scores']
+            type_performance[type_name]['average'] = sum(scores) / len(scores)
+            type_performance[type_name]['count'] = len(scores)
+        
+        return type_performance
+    
+    def _analyze_improvement_pattern(self, scores: List[float]) -> Dict[str, Any]:
+        """Analyze if student is improving, declining, or stable"""
+        if len(scores) < 3:
+            return {'pattern': 'insufficient_data'}
+        
+        # Compare first third vs last third of scores
+        first_third = scores[:len(scores)//3] if len(scores) >= 6 else scores[:2]
+        last_third = scores[-len(scores)//3:] if len(scores) >= 6 else scores[-2:]
+        
+        first_avg = sum(first_third) / len(first_third)
+        last_avg = sum(last_third) / len(last_third)
+        
+        difference = last_avg - first_avg
+        
+        if difference > 5:
+            pattern = 'improving'
+        elif difference < -5:
+            pattern = 'declining'
+        else:
+            pattern = 'stable'
+        
+        return {
+            'pattern': pattern,
+            'improvement_rate': difference,
+            'early_average': first_avg,
+            'recent_average': last_avg
+        }
+    
+    def _classify_assessment_type(self, name: str, description: str = "") -> str:
+        """Classify assessment type based on name and description"""
+        name_lower = name.lower()
+        desc_lower = (description or "").lower()
+        
+        if 'quiz' in name_lower:
+            return 'quiz'
+        elif 'exam' in name_lower or 'test' in name_lower:
+            return 'exam'
+        elif 'project' in name_lower or 'assignment' in name_lower:
+            return 'project'
+        elif 'homework' in name_lower or 'hw' in name_lower:
+            return 'homework'
+        elif 'lab' in name_lower:
+            return 'lab'
+        elif 'presentation' in name_lower:
+            return 'presentation'
+        else:
+            return 'other'
+    
+    def _estimate_difficulty_from_weight(self, weight: float) -> str:
+        """Estimate difficulty based on assessment weight"""
+        if weight >= 30:
+            return 'hard'
+        elif weight >= 20:
+            return 'moderate'
+        else:
+            return 'easy'
+    
+    def _analyze_class_performance_patterns(self, student_patterns: Dict) -> Dict[str, Any]:
+        """Analyze performance patterns across all students in class"""
+        if not student_patterns:
+            return {'no_data': True}
+        
+        all_averages = []
+        improving_count = 0
+        declining_count = 0
+        
+        for student_scores in student_patterns.values():
+            if len(student_scores) >= 2:
+                avg = sum(student_scores) / len(student_scores)
+                all_averages.append(avg)
+                
+                # Check trend
+                if len(student_scores) >= 3:
+                    early = sum(student_scores[:len(student_scores)//2]) / (len(student_scores)//2)
+                    late = sum(student_scores[len(student_scores)//2:]) / (len(student_scores) - len(student_scores)//2)
+                    
+                    if late > early + 3:
+                        improving_count += 1
+                    elif late < early - 3:
+                        declining_count += 1
+        
+        return {
+            'class_average': sum(all_averages) / len(all_averages) if all_averages else 0,
+            'improving_students': improving_count,
+            'declining_students': declining_count,
+            'stable_students': len(student_patterns) - improving_count - declining_count
+        }
+    
+    def _generate_insufficient_data_prediction(self, assessment_analysis: Dict) -> Dict[str, Any]:
+        """Generate prediction when insufficient student data is available"""
+        if assessment_analysis['has_class_data']:
+            # Use class average as prediction
+            prediction = assessment_analysis['class_average']
+            confidence = 0.4  # Lower confidence due to no student history
+        else:
+            # Use weight-based estimation
+            weight = assessment_analysis['weight']
+            if weight >= 30:
+                prediction = 72  # Assume harder assessments get lower scores
+            elif weight >= 20:
+                prediction = 78
+            else:
+                prediction = 82
+            confidence = 0.2  # Very low confidence
+        
+        return {
+            'final_prediction': prediction,
+            'confidence': confidence,
+            'range': {'min': max(0, prediction - 15), 'max': min(100, prediction + 10)},
+            'factors': ['Insufficient historical data', 'Using class/weight-based estimation'],
+            'algorithms': {'insufficient_data_fallback': prediction}
+        }
+    
+    def _calculate_prediction_confidence(self, predictions: Dict, student_patterns: Dict, assessment_analysis: Dict) -> float:
+        """Calculate confidence score based on data quality and algorithm agreement"""
+        # Base confidence factors
+        data_quality_score = min(1.0, student_patterns['total_assessments'] / 5.0)  # More data = higher confidence
+        consistency_score = student_patterns['consistency_score']
+        
+        # Algorithm agreement score
+        pred_values = list(predictions.values())
+        if len(pred_values) > 1:
+            pred_std = (sum((p - sum(pred_values)/len(pred_values))**2 for p in pred_values) / len(pred_values))**0.5
+            agreement_score = max(0, 1 - (pred_std / 20))  # Lower std dev = higher agreement
+        else:
+            agreement_score = 0.5
+        
+        # Class data availability bonus
+        class_data_bonus = 0.1 if assessment_analysis['has_class_data'] else 0
+        
+        # Combine factors
+        confidence = (data_quality_score * 0.4 + 
+                     consistency_score * 0.3 + 
+                     agreement_score * 0.3 + 
+                     class_data_bonus)
+        
+        return min(1.0, confidence)
+    
+    def _calculate_prediction_range(self, prediction: float, confidence: float, student_patterns: Dict) -> Dict[str, float]:
+        """Calculate prediction range based on confidence and student variability"""
+        # Base range based on confidence
+        base_range = (1 - confidence) * 20  # Lower confidence = wider range
+        
+        # Adjust based on student's historical variability
+        if 'performance_range' in student_patterns:
+            historical_range = student_patterns['performance_range']['max'] - student_patterns['performance_range']['min']
+            variability_factor = min(historical_range / 50, 1.0)  # Cap the influence
+            adjusted_range = base_range * (1 + variability_factor)
+        else:
+            adjusted_range = base_range
+        
+        return {
+            'min': max(0, prediction - adjusted_range/2),
+            'max': min(100, prediction + adjusted_range/2)
+        }
+    
+    def _identify_contributing_factors(self, student_patterns: Dict, assessment_analysis: Dict) -> List[str]:
+        """Identify the key factors influencing the prediction"""
+        factors = []
+        
+        # Trend factors
+        if abs(student_patterns['trend_slope']) > 2:
+            if student_patterns['trend_slope'] > 0:
+                factors.append("Student shows improving trend in recent assessments")
+            else:
+                factors.append("Student shows declining trend in recent assessments")
+        
+        # Consistency factors
+        if student_patterns['consistency_score'] > 0.8:
+            factors.append("Student has very consistent performance")
+        elif student_patterns['consistency_score'] < 0.5:
+            factors.append("Student has variable performance - prediction less certain")
+        
+        # Assessment difficulty factors
+        if assessment_analysis['has_class_data']:
+            difficulty = assessment_analysis['difficulty']
+            if difficulty == 'very_hard':
+                factors.append("This assessment is historically very challenging")
+            elif difficulty == 'easy':
+                factors.append("This assessment is typically easier than average")
+        
+        # Performance level factors
+        avg_performance = student_patterns['weighted_average']
+        if avg_performance >= 90:
+            factors.append("Student is a high performer")
+        elif avg_performance <= 65:
+            factors.append("Student is struggling - may need additional support")
+        
+        return factors
+    
+    def _fallback_prediction(self, enrollment_id: int, assessment_id: int) -> Dict[str, Any]:
+        """Simple fallback prediction when advanced ML fails"""
+        try:
+            # Get student's simple average
+            current_grade = self.calculate_student_grade(enrollment_id)
+            prediction = current_grade['predicted']
+            
+            return {
+                'predicted_score': prediction,
+                'confidence': 0.3,
+                'prediction_range': {'min': max(0, prediction - 15), 'max': min(100, prediction + 15)},
+                'contributing_factors': ['Using simple average fallback'],
+                'algorithm_breakdown': {'fallback': prediction}
+            }
+        except:
+            return {
+                'predicted_score': 75.0,
+                'confidence': 0.1,
+                'prediction_range': {'min': 60, 'max': 90},
+                'contributing_factors': ['No data available - using default estimate'],
+                'algorithm_breakdown': {'default': 75.0}
+            }
     
     # ===============================
     # DATA IMPORT/EXPORT

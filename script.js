@@ -1476,9 +1476,12 @@ class SmartGrades {
                 predictBtn.disabled = true;
             }
 
-            console.log('Predicting score for assessment:', assessmentId);
+            console.log('Predicting score for assessment:', assessmentId, 'with current data');
 
-            // Get AI prediction
+            // Add a small delay to ensure any recent grade updates are processed
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Get AI prediction with fresh data
             const prediction = await this.getAIAssessmentPrediction(enrollmentId, assessmentId);
             
             if (prediction && prediction.ai_prediction) {
@@ -1492,7 +1495,7 @@ class SmartGrades {
                 
                 // Show success message with confidence
                 const confidence = Math.round(prediction.ai_prediction.confidence_level * 100);
-                this.showNotification(`AI Predicted: ${predictedScore}% (${confidence}% confidence)`, 'success');
+                this.showNotification(`AI Predicted: ${predictedScore}% (${confidence}% confidence) - Based on current performance data`, 'success');
                 
                 console.log('AI prediction filled:', predictedScore, 'with confidence:', confidence + '%');
             } else {
@@ -1519,11 +1522,30 @@ class SmartGrades {
                 body: JSON.stringify({ score: parseFloat(score) })
             });
             
-            // Reload student detail
+            // Clear any existing AI predictions since the data has changed
+            this.clearAIPredictions();
+            
+            // Reload student detail to get updated calculations
             await this.loadStudentDetail();
         } catch (error) {
             console.error('Error updating grade:', error);
         }
+    }
+
+    clearAIPredictions() {
+        /**
+         * Clear AI prediction styling from all input fields
+         * This should be called when grade data changes
+         */
+        console.log('Clearing existing AI predictions due to data change');
+        
+        // Find all score inputs with AI prediction styling
+        const aiPredictedInputs = document.querySelectorAll('input[id^="score-input-"]');
+        aiPredictedInputs.forEach(input => {
+            // Reset to default styling
+            input.style.backgroundColor = '';
+            input.style.borderColor = '';
+        });
     }
 
     // ===============================

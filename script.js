@@ -1164,25 +1164,38 @@ class SmartGrades {
          * Shows detailed analysis and confidence scores
          */
         try {
-            if (!this.currentStudent || calculations.remaining_weight === 0) {
+            // Debug logging
+            console.log('AI Prediction Check:', {
+                currentStudent: !!this.currentStudent,
+                remainingWeight: calculations.remaining_weight,
+                studentId: this.currentStudent?.enrollment_id
+            });
+
+            if (!this.currentStudent) {
+                console.log('No current student - hiding AI panel');
                 this.hideAIPredictionPanel();
                 return;
             }
 
             // Get missing assessments for this student
             const missingAssessments = await this.getMissingAssessments(this.currentStudent.enrollment_id);
+            console.log('Missing assessments found:', missingAssessments.length);
             
             if (missingAssessments.length === 0) {
+                console.log('No missing assessments - hiding AI panel');
                 this.hideAIPredictionPanel();
                 return;
             }
 
             // Generate AI predictions for each missing assessment
+            console.log('Generating AI predictions for assessments:', missingAssessments.map(a => a.name));
             const predictions = await Promise.all(
                 missingAssessments.map(assessment => 
                     this.getAIAssessmentPrediction(this.currentStudent.enrollment_id, assessment.id)
                 )
             );
+
+            console.log('AI predictions generated:', predictions.length, 'successful predictions:', predictions.filter(p => p !== null).length);
 
             // Display AI prediction panel
             this.showAIPredictionPanel(predictions, missingAssessments);
@@ -1237,10 +1250,15 @@ class SmartGrades {
         /**
          * Display AI prediction panel with detailed insights
          */
+        console.log('Showing AI prediction panel for', predictions.length, 'predictions');
+        
         // Find or create AI prediction container
         let aiContainer = document.getElementById('ai-prediction-panel');
         if (!aiContainer) {
+            console.log('Creating new AI prediction panel');
             aiContainer = this.createAIPredictionPanel();
+        } else {
+            console.log('Using existing AI prediction panel');
         }
 
         // Generate HTML for predictions
@@ -1342,9 +1360,26 @@ class SmartGrades {
         container.className = 'ai-prediction-panel';
         container.style.display = 'none';
 
-        // Insert after the What-If Scenarios card
-        const scenarioCard = document.querySelector('.card-title').closest('.card');
-        scenarioCard.parentNode.insertBefore(container, scenarioCard.nextSibling);
+        // Insert after the What-If Scenarios card (find it by its specific title text)
+        const scenarioCards = document.querySelectorAll('.card');
+        let scenarioCard = null;
+        for (const card of scenarioCards) {
+            const title = card.querySelector('.card-title');
+            if (title && title.textContent.includes('What-If Scenarios')) {
+                scenarioCard = card;
+                break;
+            }
+        }
+        
+        if (scenarioCard) {
+            scenarioCard.parentNode.insertBefore(container, scenarioCard.nextSibling);
+        } else {
+            // Fallback: insert at the end of student detail pane
+            const studentPane = document.getElementById('student-detail-pane');
+            if (studentPane) {
+                studentPane.appendChild(container);
+            }
+        }
 
         return container;
     }

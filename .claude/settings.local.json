@@ -18,7 +18,8 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(git pull:*)",
-      "Bash(start \"https://smartgrades.onrender.com\")"
+      "Bash(start \"https://smartgrades.onrender.com\")",
+      "Bash(start \"http://localhost:5000/app.html\")"
     ],
     "deny": [],
     "ask": []

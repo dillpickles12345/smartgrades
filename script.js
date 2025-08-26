@@ -229,6 +229,7 @@ class SmartGrades {
         
         // Assessment modal
         document.getElementById('add-assessment-btn').addEventListener('click', () => this.showAddAssessmentModal());
+        document.getElementById('test-ai-predictions').addEventListener('click', () => this.testAIPredictions());
         document.getElementById('close-assessment-modal').addEventListener('click', () => this.hideModal('add-assessment-modal'));
         document.getElementById('cancel-assessment-modal').addEventListener('click', () => this.hideModal('add-assessment-modal'));
         
@@ -1156,6 +1157,31 @@ class SmartGrades {
         
         // Add AI prediction insights for missing assessments
         this.updateAIPredictionInsights(calculations);
+    }
+
+    async testAIPredictions() {
+        /**
+         * Manual test trigger for AI predictions
+         */
+        console.log('Manual AI prediction test triggered');
+        
+        if (!this.currentStudent) {
+            alert('Please select a student first');
+            return;
+        }
+
+        try {
+            console.log('Testing AI predictions for student:', this.currentStudent);
+            
+            // Force update AI predictions
+            const response = await fetch(`/api/students/${this.currentStudent.enrollment_id}/grades`);
+            const data = await response.json();
+            
+            await this.updateAIPredictionInsights(data.calculations);
+        } catch (error) {
+            console.error('Test AI predictions failed:', error);
+            alert('AI prediction test failed: ' + error.message);
+        }
     }
 
     async updateAIPredictionInsights(calculations) {

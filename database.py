@@ -503,7 +503,7 @@ class DatabaseManager:
             return cursor.lastrowid
 
     # ===============================
-    # ADVANCED AI PREDICTION SYSTEM
+    # ADVANCED PREDICTION SYSTEM
     # ===============================
 
     def predict_missing_assessment_score(self, enrollment_id: int, assessment_id: int, algorithm_mode: str = 'ensemble') -> Dict[str, Any]:

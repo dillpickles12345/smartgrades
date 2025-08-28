@@ -1055,7 +1055,7 @@ class SmartGrades {
     async viewStudent(enrollmentId) {
         this.currentStudent = { enrollment_id: enrollmentId };
         await this.loadStudentDetail();
-        this.refreshAllAIPredictButtons();
+        this.refreshAllPredictButtons();
         this.showStudentDetail();
     }
 
@@ -1451,72 +1451,13 @@ class SmartGrades {
                                    placeholder="Score"
                                    id="score-input-${grade.assessment_id}"
                                    onchange="app.updateStudentGrade(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, this.value)"
-                                   oninput="app.toggleAIPredictButton(${grade.assessment_id}, this.value)"
-                                   onblur="app.toggleAIPredictButton(${grade.assessment_id}, this.value)"
-                                   onkeyup="app.toggleAIPredictButton(${grade.assessment_id}, this.value)">
+                                   oninput="app.togglePredictButton(${grade.assessment_id}, this.value)"
+                                   onblur="app.togglePredictButton(${grade.assessment_id}, this.value)"
+                                   onkeyup="app.togglePredictButton(${grade.assessment_id}, this.value)">
                             <span class="input-group-text">%</span>
-                            <div class="btn-group" style="display: ${(grade.score === null || grade.score === undefined || grade.score === '' || grade.score === 'null') ? 'flex' : 'none'}" id="predict-btn-${grade.assessment_id}">
-                                <button type="button" class="btn btn-success btn-sm" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id})" title="Smart AI Prediction">
-                                    <i class="fas fa-brain me-1"></i>AI
-                                </button>
-                                <button type="button" class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" title="Choose Prediction Method" aria-expanded="false">
-                                    <span class="visually-hidden">Choose Method</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">
-                                    <li class="dropdown-header">
-                                        <i class="fas fa-robot me-1"></i>AI Prediction Methods
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <a class="dropdown-item active" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'ensemble')">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-brain text-primary me-2"></i>
-                                                <div>
-                                                    <div class="fw-semibold">Smart AI Ensemble</div>
-                                                    <small class="text-muted">7 ML algorithms combined</small>
-                                                </div>
-                                                <span class="badge bg-primary ms-auto">Default</span>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'linear_regression')">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-chart-line text-info me-2"></i>
-                                                <div>
-                                                    <div class="fw-semibold">Linear Regression</div>
-                                                    <small class="text-muted">Scikit-learn ML model</small>
-                                                </div>
-                                                <span class="badge bg-info ms-auto">ML</span>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'polynomial_regression')">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-wave-square text-success me-2"></i>
-                                                <div>
-                                                    <div class="fw-semibold">Polynomial Regression</div>
-                                                    <small class="text-muted">Scikit-learn polynomial model</small>
-                                                </div>
-                                                <span class="badge bg-success ms-auto">ML</span>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'rank_only')">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-trophy text-warning me-2"></i>
-                                                <div>
-                                                    <div class="fw-semibold">HSC Rank-Based</div>
-                                                    <small class="text-muted">Individual assessment rankings</small>
-                                                </div>
-                                                <span class="badge bg-warning">HSC</span>
-                                            </div>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+                            <button type="button" class="btn btn-success btn-sm" style="display: ${(grade.score === null || grade.score === undefined || grade.score === '' || grade.score === 'null') ? 'block' : 'none'}" id="predict-btn-${grade.assessment_id}" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id})" title="Smart Prediction">
+                                <i class="fas fa-calculator me-1"></i>Predict
+                            </button>
                         </div>
                         <button class="btn btn-outline-primary btn-sm" onclick="app.editAssessment(${grade.assessment_id})" title="Edit Assessment">
                             <i class="fas fa-edit"></i>
@@ -1554,10 +1495,10 @@ class SmartGrades {
                 const predictedScore = Math.round(prediction.ai_prediction.predicted_score * 10) / 10; // Round to 1 decimal
                 scoreInput.value = predictedScore;
                 
-                // Hide the AI prediction button since we now have a value
-                this.toggleAIPredictButton(assessmentId, predictedScore);
+                // Hide the prediction button since we now have a value
+                this.togglePredictButton(assessmentId, predictedScore);
                 
-                // Change input styling to show it's AI predicted
+                // Change input styling to show it's predicted
                 scoreInput.style.backgroundColor = '#e3f2fd';
                 scoreInput.style.borderColor = '#2196f3';
                 
@@ -1594,17 +1535,17 @@ class SmartGrades {
                 body: JSON.stringify({ score: scoreValue })
             });
             
-            // Update AI prediction button visibility immediately
-            this.toggleAIPredictButton(assessmentId, score);
+            // Update prediction button visibility immediately
+            this.togglePredictButton(assessmentId, score);
             
-            // Clear any existing AI predictions since the data has changed
+            // Clear any existing predictions since the data has changed
             this.clearAIPredictions();
             
             // Reload student detail to get updated calculations
             await this.loadStudentDetail();
             
-            // Refresh AI prediction button visibility based on current field values
-            this.refreshAllAIPredictButtons();
+            // Refresh prediction button visibility based on current field values
+            this.refreshAllPredictButtons();
         } catch (error) {
             console.error('Error updating grade:', error);
         }
@@ -1626,11 +1567,11 @@ class SmartGrades {
         });
     }
 
-    toggleAIPredictButton(assessmentId, value) {
+    togglePredictButton(assessmentId, value) {
         /**
-         * Toggle AI prediction button visibility based on score input value
+         * Toggle prediction button visibility based on score input value
          * Shows button when score is empty/null, hides when score has a value
-         * Always shows when input is cleared, regardless of previous AI prediction
+         * Always shows when input is cleared, regardless of previous prediction
          */
         const predictBtn = document.getElementById(`predict-btn-${assessmentId}`);
         if (predictBtn) {
@@ -1651,15 +1592,15 @@ class SmartGrades {
         }
     }
 
-    refreshAllAIPredictButtons() {
+    refreshAllPredictButtons() {
         /**
-         * Refresh visibility of all AI prediction buttons based on current input values
+         * Refresh visibility of all prediction buttons based on current input values
          * Call this after page reloads to maintain correct button states
          */
         const scoreInputs = document.querySelectorAll('input[id^="score-input-"]');
         scoreInputs.forEach(input => {
             const assessmentId = input.id.replace('score-input-', '');
-            this.toggleAIPredictButton(assessmentId, input.value);
+            this.togglePredictButton(assessmentId, input.value);
         });
     }
 
@@ -1668,12 +1609,12 @@ class SmartGrades {
          * Get display name for algorithm mode
          */
         const names = {
-            'ensemble': 'Smart AI Ensemble',
+            'ensemble': 'Smart Ensemble',
             'linear_regression': 'Linear Regression (ML)',
             'polynomial_regression': 'Polynomial Regression (ML)',
             'rank_only': 'HSC Rank-Based'
         };
-        return names[algorithmMode] || 'AI Prediction';
+        return names[algorithmMode] || 'Smart Prediction';
     }
 
     // ===============================
@@ -1752,7 +1693,7 @@ class SmartGrades {
             // Reload current view
             if (this.currentStudent) {
                 await this.loadStudentDetail();
-                this.refreshAllAIPredictButtons();
+                this.refreshAllPredictButtons();
             }
         } catch (error) {
             console.error('Error adding assessment:', error);
@@ -1771,7 +1712,7 @@ class SmartGrades {
             // Reload current view
             if (this.currentStudent) {
                 await this.loadStudentDetail();
-                this.refreshAllAIPredictButtons();
+                this.refreshAllPredictButtons();
             }
         } catch (error) {
             console.error('Error deleting assessment:', error);

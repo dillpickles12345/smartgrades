@@ -641,7 +641,7 @@ def predict_grade(enrollment_id):
 @app.route('/api/students/<int:enrollment_id>/predict-assessment/<int:assessment_id>', methods=['POST'])
 def predict_assessment_score(enrollment_id, assessment_id):
     """
-    AI-Powered Individual Assessment Score Prediction
+    Individual Assessment Score Prediction
     
     Uses advanced machine learning algorithms to predict what score a student 
     will likely achieve on a specific missing/future assessment by analyzing:
@@ -657,7 +657,7 @@ def predict_assessment_score(enrollment_id, assessment_id):
         data = request.get_json() or {}
         algorithm_mode = data.get('algorithm_mode', 'ensemble')  # Default to ensemble
         
-        # Use the advanced AI prediction system with algorithm choice
+        # Use the advanced prediction system with algorithm choice
         prediction_result = db.predict_missing_assessment_score(enrollment_id, assessment_id, algorithm_mode)
         
         # Get assessment details for context
@@ -709,7 +709,7 @@ def predict_assessment_score(enrollment_id, assessment_id):
         return jsonify(response)
         
     except Exception as e:
-        app.logger.error(f"Error in AI prediction for enrollment {enrollment_id}, assessment {assessment_id}: {e}")
+        app.logger.error(f"Error in prediction for enrollment {enrollment_id}, assessment {assessment_id}: {e}")
         return jsonify({
             'error': 'Prediction system temporarily unavailable',
             'fallback_advice': 'Try using the basic prediction endpoint or contact administrator'
@@ -909,15 +909,26 @@ def internal_error(error):
 # DEVELOPMENT HELPERS
 # ===============================
 
+@app.route('/api/init-db', methods=['POST'])
+def init_db():
+    """Initialize database tables"""
+    try:
+        db.init_database()
+        return jsonify({'message': 'Database initialized successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Database initialization failed: {str(e)}'}), 500
+
 @app.route('/api/seed', methods=['POST'])
 def seed_data():
-    """Seed database with comprehensive sample data"""
+    """Seed database with comprehensive sample data from class_marks_data.csv"""
     try:
         import random
+        import csv
+        import os
         
         # Check if sample data already exists
         teachers = db.get_all_teachers()
-        sample_emails = ['sarah.johnson@school.edu', 'michael.chen@school.edu', 'emily.davis@school.edu']
+        sample_emails = ['sarah.johnson@school.edu']
         if any(t['email'] in sample_emails for t in teachers):
             return jsonify({
                 'message': 'Sample data already exists! You can see teachers, classes, and students in the interface.',
@@ -925,101 +936,81 @@ def seed_data():
                 'status': 'already_exists'
             })
         
-        # Add sample teachers
-        teacher1_id = db.add_teacher('Dr. Sarah Johnson', 'sarah.johnson@school.edu')
-        teacher2_id = db.add_teacher('Prof. Michael Chen', 'michael.chen@school.edu')
-        teacher3_id = db.add_teacher('Ms. Emily Davis', 'emily.davis@school.edu')
+        # Add sample teacher
+        teacher_id = db.add_teacher('Dr. Sarah Johnson', 'sarah.johnson@school.edu')
         
-        # Add sample classes
-        math_class_id = db.add_class(teacher1_id, 'Advanced Mathematics', 'Mathematics', '2024', 'Semester 1')
-        english_class_id = db.add_class(teacher2_id, 'English Literature', 'English', '2024', 'Semester 1')
-        science_class_id = db.add_class(teacher3_id, 'Physics Fundamentals', 'Physics', '2024', 'Semester 1')
-        history_class_id = db.add_class(teacher2_id, 'World History', 'History', '2024', 'Semester 1')
+        # Add sample class
+        class_id = db.add_class(teacher_id, 'Mathematics 101', 'Mathematics', '2024', 'Semester 1')
         
-        # Add sample students with more realistic data
-        students = [
-            ('STU001', 'Alice', 'Johnson', 'alice.johnson@student.edu'),
-            ('STU002', 'Bob', 'Smith', 'bob.smith@student.edu'),
-            ('STU003', 'Carol', 'Davis', 'carol.davis@student.edu'),
-            ('STU004', 'David', 'Wilson', 'david.wilson@student.edu'),
-            ('STU005', 'Emma', 'Brown', 'emma.brown@student.edu'),
-            ('STU006', 'Frank', 'Miller', 'frank.miller@student.edu'),
-            ('STU007', 'Grace', 'Taylor', 'grace.taylor@student.edu'),
-            ('STU008', 'Henry', 'Anderson', 'henry.anderson@student.edu'),
-        ]
+        # Load data from CSV file
+        csv_file_path = os.path.join(os.path.dirname(__file__), 'class_marks_data.csv')
         
-        # Add students and enroll them in classes
-        for student_id, first, last, email in students:
-            db.add_student(student_id, first, last, email)
-            # Enroll each student in 2-3 classes randomly
-            classes = [math_class_id, english_class_id, science_class_id, history_class_id]
-            enrolled_classes = random.sample(classes, random.randint(2, 3))
-            for class_id in enrolled_classes:
-                db.enroll_student_in_class(class_id, student_id)
+        if not os.path.exists(csv_file_path):
+            return jsonify({'error': 'class_marks_data.csv not found'}), 400
         
-        # Add comprehensive assessments for Math class
-        math_assessments = [
-            db.add_assessment(math_class_id, 'Assignment 1: Algebra', 20, '2024-03-15', 'Linear equations and inequalities'),
-            db.add_assessment(math_class_id, 'Quiz 1: Functions', 10, '2024-03-20', 'Basic function concepts'),
-            db.add_assessment(math_class_id, 'Midterm Exam', 25, '2024-04-15', 'Comprehensive midterm examination'),
-            db.add_assessment(math_class_id, 'Assignment 2: Calculus', 20, '2024-04-25', 'Derivatives and limits'),
-            db.add_assessment(math_class_id, 'Final Project', 25, '2024-05-15', 'Applied mathematics research project'),
-        ]
+        students_added = 0
+        assessments_created = False
         
-        # Add assessments for English class
-        english_assessments = [
-            db.add_assessment(english_class_id, 'Essay 1: Poetry Analysis', 25, '2024-03-10', 'Analysis of romantic poetry'),
-            db.add_assessment(english_class_id, 'Presentation: Shakespeare', 15, '2024-03-25', 'Character analysis presentation'),
-            db.add_assessment(english_class_id, 'Midterm Exam', 30, '2024-04-10', 'Literature comprehension exam'),
-            db.add_assessment(english_class_id, 'Final Essay', 30, '2024-05-10', 'Comparative literature essay'),
-        ]
-        
-        # Add assessments for Science class
-        science_assessments = [
-            db.add_assessment(science_class_id, 'Lab Report 1', 20, '2024-03-12', 'Motion and forces experiment'),
-            db.add_assessment(science_class_id, 'Quiz 1: Mechanics', 15, '2024-03-22', 'Newton\'s laws and applications'),
-            db.add_assessment(science_class_id, 'Midterm Exam', 25, '2024-04-12', 'Physics fundamentals exam'),
-            db.add_assessment(science_class_id, 'Lab Report 2', 20, '2024-04-28', 'Energy and momentum lab'),
-            db.add_assessment(science_class_id, 'Final Project', 20, '2024-05-12', 'Physics demonstration project'),
-        ]
-        
-        # Add realistic grades for students
-        all_classes = [
-            (math_class_id, math_assessments),
-            (english_class_id, english_assessments),
-            (science_class_id, science_assessments)
-        ]
-        
-        for class_id, assessments in all_classes:
-            students_data = db.get_class_students(class_id)
-            for student in students_data:
-                # Create different performance profiles for students
-                student_performance = random.choice(['high', 'medium', 'low', 'mixed'])
+        with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            # Get assessment columns (excluding student info columns)
+            assessment_columns = [col for col in reader.fieldnames 
+                                if col not in ['student_id', 'first_name', 'last_name', 'email']]
+            
+            for row in reader:
+                # Add student
+                student_id = row['student_id']
+                first_name = row['first_name']
+                last_name = row['last_name']
+                email = row['email']
                 
-                for i, assessment_id in enumerate(assessments):
-                    # Leave some final assessments incomplete
-                    if i < len(assessments) - 1 or random.random() > 0.3:
-                        if student_performance == 'high':
-                            score = random.randint(85, 98)
-                        elif student_performance == 'medium':
-                            score = random.randint(70, 84)
-                        elif student_performance == 'low':
-                            score = random.randint(55, 75)
-                        else:  # mixed performance
-                            score = random.randint(60, 95)
+                db.add_student(student_id, first_name, last_name, email)
+                enrollment_id = db.enroll_student_in_class(class_id, student_id)
+                students_added += 1
+                
+                # Create assessments (only once)
+                if not assessments_created:
+                    assessment_weights = {
+                        'Quiz_1': 10, 'Assignment_1': 15, 'Midterm_Exam': 20,
+                        'Quiz_2': 10, 'Assignment_2': 15, 'Project_Presentation': 15,
+                        'Quiz_3': 10, 'Final_Exam': 25
+                    }
+                    
+                    for assessment_name in assessment_columns:
+                        weight = assessment_weights.get(assessment_name, 10)
+                        assessment_type = 'Quiz' if 'Quiz' in assessment_name else \
+                                        'Assignment' if 'Assignment' in assessment_name else \
+                                        'Exam' if 'Exam' in assessment_name else \
+                                        'Project' if 'Project' in assessment_name else 'Other'
                         
-                        db.update_student_grade(student['enrollment_id'], assessment_id, score)
+                        db.add_assessment(class_id, assessment_name, weight, 
+                                        '2024-12-01', f'{assessment_name} for Mathematics 101')
+                    
+                    assessments_created = True
+                
+                # Add grades for this student
+                assessments = db.get_class_assessments(class_id)
+                for assessment in assessments:
+                    assessment_name = assessment['name']
+                    if assessment_name in row and row[assessment_name] and row[assessment_name].strip():
+                        try:
+                            score = float(row[assessment_name])
+                            db.update_student_grade(enrollment_id, assessment['id'], score)
+                        except (ValueError, TypeError):
+                            # Skip invalid scores (empty cells, etc.)
+                            pass
         
         # Count created items
-        teacher_count = 3
-        class_count = 4
-        student_count = len(students)
+        teacher_count = 1
+        class_count = 1
         
         return jsonify({
-            'message': f'Sample data created successfully! Added {teacher_count} teachers, {class_count} classes, {student_count} students with realistic grades and assessments.',
+            'message': f'Sample data loaded from CSV! Added {teacher_count} teacher, {class_count} class, {students_added} students with realistic grades and assessments from class_marks_data.csv.',
             'teachers': teacher_count,
             'classes': class_count,
-            'students': student_count
+            'students': students_added,
+            'assessments': len(assessment_columns) if assessment_columns else 0
         })
         
     except Exception as e:

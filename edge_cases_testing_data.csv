@@ -1,0 +1,16 @@
+student_id,first_name,last_name,email,Quiz_1,Quiz_2,Midterm,Project_1,Quiz_3,Final,Scenario_Type
+EDGE001,Perfect,Student,perfect@test.edu,100,100,100,100,100,,Perfect scores - test ceiling effect
+EDGE002,Failing,Student,failing@test.edu,30,25,35,28,32,40,Very low scores - test floor effect
+EDGE003,Declining,Student,declining@test.edu,90,85,80,75,70,,Steep decline pattern
+EDGE004,Recovering,Student,recovering@test.edu,50,55,60,65,70,75,Recovery from poor start
+EDGE005,Volatile,Student,volatile@test.edu,85,65,90,55,95,,Highly variable performance
+EDGE006,Missing,Early,missing.early@test.edu,,,80,85,88,90,Missing early assessments
+EDGE007,Missing,Middle,missing.middle@test.edu,75,80,,,85,,Missing middle assessments  
+EDGE008,Late,Starter,late.starter@test.edu,,,,75,80,85,Late enrollment scenario
+EDGE009,Improvement,Spike,spike@test.edu,70,72,74,95,96,,Sudden improvement
+EDGE010,Performance,Drop,drop@test.edu,95,93,91,60,62,,Sudden performance drop
+EDGE011,Minimal,Data,minimal@test.edu,80,,,,,,"Minimal data - only one assessment"
+EDGE012,Inconsistent,Effort,inconsistent@test.edu,40,95,45,90,50,,Alternating high/low pattern
+EDGE013,Plateau,Student,plateau@test.edu,75,75,75,75,75,,No change - flat performance
+EDGE014,Binary,Performer,binary@test.edu,100,0,100,0,100,,Extreme binary performance
+EDGE015,Gradual,Decline,gradual@test.edu,85,82,79,76,73,70,Steady gradual decline

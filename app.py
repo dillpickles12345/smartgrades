@@ -653,8 +653,12 @@ def predict_assessment_score(enrollment_id, assessment_id):
     Returns detailed prediction with confidence scores and contributing factors.
     """
     try:
-        # Use the advanced AI prediction system
-        prediction_result = db.predict_missing_assessment_score(enrollment_id, assessment_id)
+        # Get prediction algorithm choice from request
+        data = request.get_json() or {}
+        algorithm_mode = data.get('algorithm_mode', 'ensemble')  # Default to ensemble
+        
+        # Use the advanced AI prediction system with algorithm choice
+        prediction_result = db.predict_missing_assessment_score(enrollment_id, assessment_id, algorithm_mode)
         
         # Get assessment details for context
         with db.get_db_connection() as conn:

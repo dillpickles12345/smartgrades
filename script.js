@@ -1055,6 +1055,7 @@ class SmartGrades {
     async viewStudent(enrollmentId) {
         this.currentStudent = { enrollment_id: enrollmentId };
         await this.loadStudentDetail();
+        this.refreshAllAIPredictButtons();
         this.showStudentDetail();
     }
 
@@ -1156,7 +1157,7 @@ class SmartGrades {
     }
 
 
-    async getAIAssessmentPrediction(enrollmentId, assessmentId) {
+    async getAIAssessmentPrediction(enrollmentId, assessmentId, algorithmMode = 'ensemble') {
         /**
          * Get AI-powered prediction for a specific assessment
          */
@@ -1166,7 +1167,7 @@ class SmartGrades {
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({ algorithm_mode: algorithmMode })
                 }
             );
 
@@ -1428,6 +1429,12 @@ class SmartGrades {
             return;
         }
 
+        // Debug logging
+        console.log('Rendering assessments with grades:', grades);
+        grades.forEach(grade => {
+            console.log(`Assessment ${grade.name}: score=${grade.score}, type=${typeof grade.score}`);
+        });
+
         container.innerHTML = grades.map(grade => `
             <div class="card mb-2">
                 <div class="card-body d-flex justify-content-between align-items-center">
@@ -1436,23 +1443,81 @@ class SmartGrades {
                         <small class="text-secondary">Weight: ${grade.weight}% ${grade.due_date ? `| Due: ${new Date(grade.due_date).toLocaleDateString()}` : ''}</small>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <input type="number" 
-                               class="form-control form-control-sm" 
-                               style="width: 80px;"
-                               min="0" max="100" 
-                               value="${grade.score || ''}" 
-                               placeholder="Score"
-                               id="score-input-${grade.assessment_id}"
-                               onchange="app.updateStudentGrade(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, this.value)">
-                        <small class="text-secondary">%</small>
-                        ${grade.score === null ? `
-                            <button class="btn btn-info btn-sm" 
-                                    onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id})" 
-                                    title="AI Predict Score"
-                                    id="predict-btn-${grade.assessment_id}">
-                                <i class="fas fa-robot"></i>
-                            </button>
-                        ` : ''}
+                        <div class="input-group input-group-sm" style="width: 140px;">
+                            <input type="number" 
+                                   class="form-control" 
+                                   min="0" max="100" 
+                                   value="${grade.score || ''}" 
+                                   placeholder="Score"
+                                   id="score-input-${grade.assessment_id}"
+                                   onchange="app.updateStudentGrade(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, this.value)"
+                                   oninput="app.toggleAIPredictButton(${grade.assessment_id}, this.value)"
+                                   onblur="app.toggleAIPredictButton(${grade.assessment_id}, this.value)"
+                                   onkeyup="app.toggleAIPredictButton(${grade.assessment_id}, this.value)">
+                            <span class="input-group-text">%</span>
+                            <div class="btn-group" style="display: ${(grade.score === null || grade.score === undefined || grade.score === '' || grade.score === 'null') ? 'flex' : 'none'}" id="predict-btn-${grade.assessment_id}">
+                                <button type="button" class="btn btn-success btn-sm" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id})" title="Smart AI Prediction">
+                                    <i class="fas fa-brain me-1"></i>AI
+                                </button>
+                                <button type="button" class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" title="Choose Prediction Method" aria-expanded="false">
+                                    <span class="visually-hidden">Choose Method</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                    <li class="dropdown-header">
+                                        <i class="fas fa-robot me-1"></i>AI Prediction Methods
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item active" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'ensemble')">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-brain text-primary me-2"></i>
+                                                <div>
+                                                    <div class="fw-semibold">Smart AI Ensemble</div>
+                                                    <small class="text-muted">7 ML algorithms combined</small>
+                                                </div>
+                                                <span class="badge bg-primary ms-auto">Default</span>
+                                            </div>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'linear_regression')">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-chart-line text-info me-2"></i>
+                                                <div>
+                                                    <div class="fw-semibold">Linear Regression</div>
+                                                    <small class="text-muted">Scikit-learn ML model</small>
+                                                </div>
+                                                <span class="badge bg-info ms-auto">ML</span>
+                                            </div>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'polynomial_regression')">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-wave-square text-success me-2"></i>
+                                                <div>
+                                                    <div class="fw-semibold">Polynomial Regression</div>
+                                                    <small class="text-muted">Scikit-learn polynomial model</small>
+                                                </div>
+                                                <span class="badge bg-success ms-auto">ML</span>
+                                            </div>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="app.predictAndFillScore(${this.currentStudent.enrollment_id}, ${grade.assessment_id}, 'rank_only')">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-trophy text-warning me-2"></i>
+                                                <div>
+                                                    <div class="fw-semibold">HSC Rank-Based</div>
+                                                    <small class="text-muted">Individual assessment rankings</small>
+                                                </div>
+                                                <span class="badge bg-warning">HSC</span>
+                                            </div>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                         <button class="btn btn-outline-primary btn-sm" onclick="app.editAssessment(${grade.assessment_id})" title="Edit Assessment">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1465,7 +1530,7 @@ class SmartGrades {
         `).join('');
     }
 
-    async predictAndFillScore(enrollmentId, assessmentId) {
+    async predictAndFillScore(enrollmentId, assessmentId, algorithmMode = 'ensemble') {
         try {
             // Show loading state
             const predictBtn = document.getElementById(`predict-btn-${assessmentId}`);
@@ -1482,12 +1547,15 @@ class SmartGrades {
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Get AI prediction with fresh data
-            const prediction = await this.getAIAssessmentPrediction(enrollmentId, assessmentId);
+            const prediction = await this.getAIAssessmentPrediction(enrollmentId, assessmentId, algorithmMode);
             
             if (prediction && prediction.ai_prediction) {
                 // Fill the predicted score into the input field
                 const predictedScore = Math.round(prediction.ai_prediction.predicted_score * 10) / 10; // Round to 1 decimal
                 scoreInput.value = predictedScore;
+                
+                // Hide the AI prediction button since we now have a value
+                this.toggleAIPredictButton(assessmentId, predictedScore);
                 
                 // Change input styling to show it's AI predicted
                 scoreInput.style.backgroundColor = '#e3f2fd';
@@ -1495,7 +1563,8 @@ class SmartGrades {
                 
                 // Show success message with confidence
                 const confidence = Math.round(prediction.ai_prediction.confidence_level * 100);
-                this.showNotification(`AI Predicted: ${predictedScore}% (${confidence}% confidence) - Based on current performance data`, 'success');
+                const algorithmName = this.getAlgorithmDisplayName(algorithmMode);
+                this.showNotification(`${algorithmName}: ${predictedScore}% (${confidence}% confidence)`, 'success');
                 
                 console.log('AI prediction filled:', predictedScore, 'with confidence:', confidence + '%');
             } else {
@@ -1517,16 +1586,25 @@ class SmartGrades {
 
     async updateStudentGrade(enrollmentId, assessmentId, score) {
         try {
+            // Handle empty values by sending null instead of NaN
+            const scoreValue = (score === '' || score === null || score === undefined) ? null : parseFloat(score);
+            
             await this.apiCall(`/api/students/${enrollmentId}/assessments/${assessmentId}/grade`, {
                 method: 'POST',
-                body: JSON.stringify({ score: parseFloat(score) })
+                body: JSON.stringify({ score: scoreValue })
             });
+            
+            // Update AI prediction button visibility immediately
+            this.toggleAIPredictButton(assessmentId, score);
             
             // Clear any existing AI predictions since the data has changed
             this.clearAIPredictions();
             
             // Reload student detail to get updated calculations
             await this.loadStudentDetail();
+            
+            // Refresh AI prediction button visibility based on current field values
+            this.refreshAllAIPredictButtons();
         } catch (error) {
             console.error('Error updating grade:', error);
         }
@@ -1546,6 +1624,56 @@ class SmartGrades {
             input.style.backgroundColor = '';
             input.style.borderColor = '';
         });
+    }
+
+    toggleAIPredictButton(assessmentId, value) {
+        /**
+         * Toggle AI prediction button visibility based on score input value
+         * Shows button when score is empty/null, hides when score has a value
+         * Always shows when input is cleared, regardless of previous AI prediction
+         */
+        const predictBtn = document.getElementById(`predict-btn-${assessmentId}`);
+        if (predictBtn) {
+            const isEmpty = (value === '' || value === null || value === undefined || value === 'null');
+            if (isEmpty) {
+                // Always show button when field is empty
+                predictBtn.style.display = 'inline-block';
+                // Clear any AI prediction styling since user cleared the field
+                const scoreInput = document.getElementById(`score-input-${assessmentId}`);
+                if (scoreInput) {
+                    scoreInput.style.backgroundColor = '';
+                    scoreInput.style.borderColor = '';
+                }
+            } else {
+                // Hide button when field has a value
+                predictBtn.style.display = 'none';
+            }
+        }
+    }
+
+    refreshAllAIPredictButtons() {
+        /**
+         * Refresh visibility of all AI prediction buttons based on current input values
+         * Call this after page reloads to maintain correct button states
+         */
+        const scoreInputs = document.querySelectorAll('input[id^="score-input-"]');
+        scoreInputs.forEach(input => {
+            const assessmentId = input.id.replace('score-input-', '');
+            this.toggleAIPredictButton(assessmentId, input.value);
+        });
+    }
+
+    getAlgorithmDisplayName(algorithmMode) {
+        /**
+         * Get display name for algorithm mode
+         */
+        const names = {
+            'ensemble': 'Smart AI Ensemble',
+            'linear_regression': 'Linear Regression (ML)',
+            'polynomial_regression': 'Polynomial Regression (ML)',
+            'rank_only': 'HSC Rank-Based'
+        };
+        return names[algorithmMode] || 'AI Prediction';
     }
 
     // ===============================
@@ -1623,7 +1751,8 @@ class SmartGrades {
             
             // Reload current view
             if (this.currentStudent) {
-                this.loadStudentDetail();
+                await this.loadStudentDetail();
+                this.refreshAllAIPredictButtons();
             }
         } catch (error) {
             console.error('Error adding assessment:', error);
@@ -1641,7 +1770,8 @@ class SmartGrades {
             
             // Reload current view
             if (this.currentStudent) {
-                this.loadStudentDetail();
+                await this.loadStudentDetail();
+                this.refreshAllAIPredictButtons();
             }
         } catch (error) {
             console.error('Error deleting assessment:', error);
